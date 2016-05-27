@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	http://www.springframework.org/schema/tx 
+	http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+	http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-3.0.xsd
+	http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd"
+	default-autowire="byName">
+    <bean id="gPropertyConfigurer"
+		class="com.yang.thelab.common.PropertiesConfig">
+		<property name="locations">
+			<list>
+				<value>file:${user.home}/theadmin/server-common.conf</value>
+			</list>
+		</property>
+		<property name="print" value="true"/>
+	</bean>	
+
+	<!-- 自动扫描的包名 -->
+	<context:component-scan base-package="com.yang.thelab.web.controller"
+		use-default-filters="false">
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+	<mvc:resources mapping="/img/**" location="/WEB-INF/img/" />
+	<mvc:resources mapping="/dist/**" location="/WEB-INF/static/dist/" />
+	<mvc:resources mapping="*.js" location="/WEB-INF/static/" />
+	<mvc:resources mapping="*.css" location="/WEB-INF/static/" />
+	<mvc:resources mapping="*.ico" location="/WEB-INF/static/" />
+
+	<!-- 配置数据绑定，通过转换服务实现绑定，如果包含jsr303实现还将进行校验 -->
+	<bean id="webBindingInitializer"
+		class="org.springframework.web.bind.support.ConfigurableWebBindingInitializer">
+	</bean>
+	<bean id="exceptionHandler" class="com.yang.thelab.common.exception.MyHandlerExceptionResolver" />
+
+	<!-- 默认的注解映射的支持，这种方式不建议使用，扩展能力比较弱 -->
+	<!-- <mvc:annotation-driven /> -->
+	<!-- 请求映射到具体的action方法，<mvc:annotation-driven />中默认有，我们选择显示配置 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping">
+		<property name="interceptors">
+			<list>
+				<bean class="com.yang.thelab.common.LoginInterceptor">
+					<property name="skipLogin" value="${thelab.skipLogin}"/>
+				</bean>
+			</list>
+		</property>
+	</bean>
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="messageConverters">
+			<list>
+				<ref bean="byteArray_hmc" />
+				<ref bean="string_hmc" />
+				<ref bean="resource_hmc" />
+				<ref bean="source_hmc" />
+				<ref bean="xmlAwareForm_hmc" />
+				<ref bean="jaxb2RootElement_hmc" />
+				<ref bean="jackson_hmc" />
+			</list>
+		</property>
+	</bean>
+	<bean id="byteArray_hmc"
+		class="org.springframework.http.converter.ByteArrayHttpMessageConverter" />
+	<bean id="string_hmc"
+		class="org.springframework.http.converter.StringHttpMessageConverter" />
+	<bean id="resource_hmc"
+		class="org.springframework.http.converter.ResourceHttpMessageConverter" />
+	<bean id="source_hmc"
+		class="org.springframework.http.converter.xml.SourceHttpMessageConverter" />
+	<bean id="xmlAwareForm_hmc"
+		class="org.springframework.http.converter.xml.XmlAwareFormHttpMessageConverter" />
+	<bean id="jaxb2RootElement_hmc"
+		class="org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter" />
+	<bean id="jackson_hmc"
+		class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter" />
+
+	<!-- 视图解释类 -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/jsp/" />
+		<property name="suffix" value=".jsp" /><!--可为空,方便实现自已的依据扩展名来选择视图解释类的逻辑 -->
+		<property name="viewClass"
+			value="org.springframework.web.servlet.view.JstlView" />
+	</bean>
+	<!-- 对静态资源文件的访问 方案一 （二选一） -->
+	<mvc:default-servlet-handler />
+
+
+	<!-- 总错误处理 -->
+	<!-- <bean id="exceptionResolver" -->
+	<!-- class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver"> -->
+	<!-- <property name="defaultErrorView"> -->
+	<!-- <value>/error/error</value> -->
+	<!-- </property> -->
+	<!-- <property name="defaultStatusCode"> -->
+	<!-- <value>500</value> -->
+	<!-- </property> -->
+	<!-- <property name="warnLogCategory"> -->
+	<!-- <value>org.springframework.web.servlet.handler.SimpleMappingExceptionResolver -->
+	<!-- </value> -->
+	<!-- </property> -->
+	<!-- </bean> -->
+    <bean id="validatemessageSource"
+		class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+		<property name="basenames">  
+            <list>  
+                <!-- 在web环境中一定要定位到classpath 否则默认到当前web应用下找  -->  
+                <value>classpath:message</value>  
+                <value>classpath:org/hibernate/validator/ValidationMessages</value>  
+            </list>  
+        </property> 
+		<property name="fileEncodings" value="utf-8" />
+		<property name="cacheSeconds" value="120" />
+		<property name="useCodeAsDefaultMessage" value="false" />  
+	</bean>
+
+	<bean id="validator"
+		class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+		<property name="providerClass" value="org.hibernate.validator.HibernateValidator" />
+		<!--不设置则默认为classpath下的 ValidationMessages.properties -->
+		<property name="validationMessageSource" ref="validatemessageSource" />
+	</bean>
+
+	<bean id="conversionService"
+		class="org.springframework.format.support.FormattingConversionServiceFactoryBean">
+		<property name="converters">
+			<set>
+				<bean class="com.yang.thelab.common.DateConverter"/>
+			</set>
+		</property>
+	</bean>
+	
+	<bean id="localeResolver"  class="org.springframework.web.servlet.i18n.CookieLocaleResolver" />    
+
+
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<property name="defaultEncoding" value="utf-8"></property>
+		<property name="maxUploadSize" value="10485760000"></property>
+		<property name="maxInMemorySize" value="40960"></property>
+	</bean>
+</beans>
